@@ -19,7 +19,7 @@ class Settings:
     """Application settings."""
     
     # API Keys
-    api_key = os.getenv("EURIAI_API_KEY", "")
+    api_key = os.getenv("API_KEY", "")
     
     # Model Configuration
     embedding_model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
@@ -52,21 +52,21 @@ os.makedirs("data", exist_ok=True)
 # Embedding Model (Direct API)
 # =====================================================================
 
-class EuriaiEmbeddings:
-    """Wrapper for Euriai embeddings API."""
+class aiEmbeddings:
+    """Wrapper for ai embeddings API."""
     
     def __init__(
         self,
         api_key: str = None,
         model: str = None,
     ):
-        """Initialize the Euriai embeddings model."""
+        """Initialize the ai embeddings model."""
         self.api_key = api_key or settings.api_key
         self.model = model or settings.embedding_model
-        self.embed_url = "https://api.euron.one/api/v1/euri/alpha/embeddings"
+        self.embed_url = ""
         
         if not self.api_key:
-            raise ValueError("Euriai API key not provided")
+            raise ValueError("API key not provided")
             
     def _get_headers(self):
         """Get API request headers."""
@@ -110,12 +110,9 @@ class EuriaiEmbeddings:
         embeddings = self.embed_documents([text])
         return embeddings[0] if embeddings else []
 
-# =====================================================================
-# Chat Model (with EuriaiClient)
-# =====================================================================
 
-class EuriaiChat:
-    """Wrapper for Euriai chat completion API."""
+class aiChat:
+    """Wrapper for ai chat completion API."""
     
     def __init__(
         self,
@@ -124,25 +121,25 @@ class EuriaiChat:
         temperature: float = None,
         max_tokens: int = None,
     ):
-        """Initialize the Euriai chat model."""
+        """Initialize the ai chat model."""
         self.api_key = api_key or settings.api_key
         self.model = model or settings.chat_model
         self.temperature = temperature or settings.temperature
         self.max_tokens = max_tokens or settings.max_tokens
         
-        # Import and initialize the Euriai client
+        # Import and initialize the ai client
         try:
-            from euriai import EuriaiClient
-            self.client = EuriaiClient(
+            from ai import aiClient
+            self.client = aiClient(
                 api_key=self.api_key,
                 model=self.model
             )
             self.client_available = True
         except ImportError:
-            st.warning("Euriai client not installed. Using direct API calls instead.")
+            st.warning("ai client not installed. Using direct API calls instead.")
             self.client_available = False
         except Exception as e:
-            st.warning(f"Error initializing Euriai client: {str(e)}. Using direct API calls instead.")
+            st.warning(f"Error initializing ai client: {str(e)}. Using direct API calls instead.")
             self.client_available = False
         
     def generate_completion(self, prompt: str, **kwargs) -> str:
@@ -153,7 +150,7 @@ class EuriaiChat:
         
         if self.client_available:
             try:
-                # Use the Euriai client to generate a completion
+                # Use the ai client to generate a completion
                 response = self.client.generate_completion(
                     prompt=prompt,
                     temperature=temperature,
@@ -161,7 +158,7 @@ class EuriaiChat:
                 )
                 return response
             except Exception as e:
-                st.warning(f"Error with Euriai client: {str(e)}. Falling back to direct API.")
+                st.warning(f"Error with ai client: {str(e)}. Falling back to direct API.")
                 return self._generate_completion_direct(prompt, temperature, max_tokens)
         else:
             return self._generate_completion_direct(prompt, temperature, max_tokens)
@@ -170,7 +167,7 @@ class EuriaiChat:
         """Generate a completion using direct API call."""
         try:
             # Prepare the API request
-            url = "https://api.euron.one/api/v1/completions"
+            url = ""
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {self.api_key}"
@@ -193,7 +190,7 @@ class EuriaiChat:
         except Exception as e:
             # If that fails, try the chat endpoint
             try:
-                url = "https://api.euron.one/api/v1/chat/completions"
+                url = ""
                 payload = {
                     "model": self.model,
                     "messages": [{"role": "user", "content": prompt}],
@@ -219,11 +216,11 @@ class MemoryVectorStore:
     
     def __init__(
         self,
-        embedding_model: Optional[EuriaiEmbeddings] = None,
+        embedding_model: Optional[aiEmbeddings] = None,
         index_path: str = None
     ):
         """Initialize the vector store."""
-        self.embedding_model = embedding_model or EuriaiEmbeddings()
+        self.embedding_model = embedding_model or aiEmbeddings()
         self.index_path = index_path or settings.index_path
         self.metadata_path = f"{self.index_path}_metadata.json"
         self.vector_dim = settings.vector_dim
@@ -434,11 +431,11 @@ class ConversationMemory:
 # =====================================================================
 
 def create_langchain_llm(api_key=None, model=None, temperature=None, max_tokens=None):
-    """Create a LangChain LLM using Euriai (if available)."""
+    """Create a LangChain LLM using ai (if available)."""
     try:
-        from euriai import EuriaiLangChainLLM
+        from ai import aiLangChainLLM
         
-        llm = EuriaiLangChainLLM(
+        llm = aiLangChainLLM(
             api_key=api_key or settings.api_key,
             model=model or settings.chat_model,
             temperature=temperature or settings.temperature,
@@ -446,7 +443,7 @@ def create_langchain_llm(api_key=None, model=None, temperature=None, max_tokens=
         )
         return llm
     except ImportError:
-        st.warning("LangChain integration not available: euriai package not installed correctly.")
+        st.warning("LangChain integration not available: ai package not installed correctly.")
         return None
     except Exception as e:
         st.warning(f"Error initializing LangChain LLM: {str(e)}")
@@ -463,13 +460,13 @@ class MemoryChatbot:
         self,
         conversation_memory: Optional[ConversationMemory] = None,
         vector_store: Optional[MemoryVectorStore] = None,
-        chat_model: Optional[EuriaiChat] = None,
+        chat_model: Optional[aiChat] = None,
         user_identity: str = None
     ):
         """Initialize the memory chatbot."""
         self.conversation_memory = conversation_memory or ConversationMemory()
         self.vector_store = vector_store or MemoryVectorStore()
-        self.chat_model = chat_model or EuriaiChat()
+        self.chat_model = chat_model or aiChat()
         self.user_identity = user_identity or settings.user_identity
         
         # Try to initialize LangChain integration (optional)
@@ -665,9 +662,8 @@ def save_user_identity(identity: str) -> bool:
 # =====================================================================
 
 def test_embeddings(api_key=None):
-    """Test function for Euriai embeddings API."""
-    url = "https://api.euron.one/api/v1/euri/alpha/embeddings"
-    headers = {
+    """Test function for ai embeddings API."""
+    url =    headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key or settings.api_key}"
     }
@@ -712,11 +708,11 @@ st.set_page_config(
 
 # API Key check
 if not settings.api_key:
-    st.error("⚠️ Euriai API key not found. Please add it to your .env file or provide it below:")
-    api_key = st.text_input("Euriai API Key", type="password")
+    st.error("⚠️ ai API key not found. Please add it to your .env file or provide it below:")
+    api_key = st.text_input("ai API Key", type="password")
     if api_key:
         settings.api_key = api_key
-        os.environ["EURIAI_API_KEY"] = api_key
+        os.environ["ai_API_KEY"] = api_key
         st.success("API key saved for this session!")
         
         # Test the API key
